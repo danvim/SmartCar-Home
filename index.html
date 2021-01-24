@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="utf-8">
+        <title>HKUST Robotics Team Intelligent Racing</title>
+        <meta name="viewport" content="width=device-width, maximum-scale=1.0, user-scalable=0, initial-scale=1, shrink-to-fit=no">
+        <meta name="application-name" content="HKUST Intelligent Racing">
+        <meta name="theme-color" content="#000000">
+        <style>
+            html, body {
+                margin: 0;
+                padding: 0;
+                min-height: 100vh;
+                overflow: hidden;
+            }
+            * {
+                box-sizing: border-box;
+                color: rgba(255, 255, 255, 0.6);
+                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            }
+            #bg {
+                position:absolute;
+                top:0;
+                left:0;
+                z-index: -1;
+            }
+            #text {
+                padding: 50px;
+                position:absolute;
+                top:0;
+                left:0;
+                width: 100vw;
+                height: 100vh;
+            }
+            h1 {
+                margin: 0;
+                font-size: 4vmax;
+                mix-blend-mode: hard-light;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="bg"></div>
+        <div id="text"><h1>HKUST Robotics Team<br> Intelligent Racing</h1></div>
+        <script src="three.min.js"></script>
+        <script src="LoaderSupport.js"></script>
+        <script src="OBJLoader2.js"></script>
+        <script>
+            let [cOriginX, cOriginY] = [null, null];
+            let canvas = null;
+            let deviceMoved = false;
+            const backgroundColor = 0x000000;
+
+            class MotionDelta {
+                constructor(x, y) {
+                    this.x = x;
+                    this.y = y;
+                }
+
+                scale(factor) {
+                    this.x = this.x*factor;
+                    this.y = this.y*factor;
+                }
+
+                get deltas() {
+                    return [this.x, this.y];
+                }
+            }
+
+            function getScene() {
+                let scene = new THREE.Scene();
+                scene.background = new THREE.Color(backgroundColor);
+                scene.fog = new THREE.FogExp2(backgroundColor, 0.4);
+                return scene;
+            }
+
+            function getCamera() {
+                let aspectRatio = window.innerWidth/window.innerHeight;
+                let camera = new THREE.PerspectiveCamera(50, aspectRatio, 0.1, 100);
+                camera.position.set(0.48911482500180764, 1.9508859232517073, 3.260369174751998);
+                camera.rotation.set(-0.779358548570453, 0.4112694477316764,  0.3761654510472183);
+                return camera;
+            }
+
+            function getLight(scene) {
+                let light = new THREE.PointLight(0xeeffff, 1, 0);
+                light.position.set(-3, 6, 3);
+                scene.add(light);
+            }
+
+            function motionChange(motionDelta) {
+                const Y = new THREE.Vector3(0, 1, 0);
+                let change = new THREE.Vector3(...motionDelta.deltas);
+                    
+                change = change.applyAxisAngle(Y, 0.5);
+                change = change.add(cameraPos);
+                camera.position.copy(change);
+            }
+
+            function mouseUpdate(e) {
+                if (!deviceMoved) {
+                    let motionDelta = new MotionDelta(e.clientX-cOriginX, canvas.height-(e.clientY-cOriginY));
+                    motionDelta.scale(0.0002);
+                    motionChange(motionDelta);
+                }
+            }
+
+            function deviceUpdate(e) {
+                if (e.beta !== 0) {
+                    deviceMoved = true;
+                    let motionDelta = new MotionDelta(-e.gamma+20, e.beta-10);
+                    motionDelta.scale(0.05);
+                    motionChange(motionDelta);
+                }
+            }
+
+            function getRenderer() {
+                let renderer = new THREE.WebGLRenderer({
+                    antialias: true
+                });
+                renderer.setPixelRatio(window.devicePixelRatio);
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                canvas = renderer.domElement;
+                document.getElementById("bg").appendChild(canvas);
+                [cOriginX, cOriginY] = [window.innerWidth/2, window.innerHeight/2];
+                document.body.addEventListener("mousemove", mouseUpdate);
+                window.addEventListener("deviceorientation", deviceUpdate);
+                return renderer;
+            }
+
+            let loader = new THREE.OBJLoader2();
+            loader.load('car.obj', addModelToScene);
+
+            //let loader = new THREE.ObjectLoader();
+            //loader.load('car.json', addModelToScene);
+
+            function addModelToScene(event) {
+                event.detail.loaderRootNode.children[0].scale.set(0.0019895752, 0.0019895752, 0.0019895752);
+                scene.add(event.detail.loaderRootNode);
+            }
+
+            function render() {
+                setTimeout( function() {
+                    requestAnimationFrame(render);
+                }, 1000 / 24 );
+                renderer.render(scene, camera);
+                if (!rendered) {
+                    rendered = true;
+                    cameraPos = camera.position.clone();
+                    cameraRot = camera.rotation.clone();
+                }
+            }
+
+            window.addEventListener( 'resize', onWindowResize, false );
+
+            function onWindowResize(){
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+
+                [cOriginX, cOriginY] = [window.innerWidth/2, window.innerHeight/2];
+
+                renderer.setSize( window.innerWidth, window.innerHeight );
+            }
+
+            let scene = getScene();
+            let camera = getCamera();
+            let light = getLight(scene);
+            let renderer = getRenderer();
+            let rendered = false;
+            let cameraPos = null;
+            let cameraRot = null;
+
+            render();
+        </script>
+    </body>
+</html>
